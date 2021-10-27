@@ -73,6 +73,8 @@ class EditEventDialog : DialogFragmentWithDate() {
         binding.inputEventTitle.setText(event.title)
         binding.inputEventTitle.isFocusable = !event.readOnly
         binding.triggerDescription.text = event.trigger.friendlyDescription()
+        binding.userAction.isChecked = event.userAction
+        binding.enabled.isChecked = event.isEnabled
 
         binding.editTrigger.visibility = (!event.readOnly).toVisibility()
         binding.editTrigger.setOnClickListener {
@@ -131,9 +133,11 @@ class EditEventDialog : DialogFragmentWithDate() {
             return false
         }
         event.title = title
+        event.userAction = binding.userAction.isChecked
+        event.isEnabled = binding.enabled.isChecked
         // check for at least one trigger
-        val con = event.trigger as TriggerConnector
-        if (con.size() == 0) {
+        val con = event.trigger
+        if (con.size() == 0 && !event.userAction) {
             ToastUtils.showToastInUiThread(context, R.string.automation_missing_trigger)
             return false
         }

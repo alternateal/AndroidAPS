@@ -1,12 +1,14 @@
 package info.nightscout.androidaps.plugins.general.automation.triggers
 
 import android.content.Context
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.TextView
 import androidx.annotation.StringRes
 import com.google.common.base.Optional
 import dagger.android.HasAndroidInjector
@@ -14,6 +16,7 @@ import info.nightscout.androidaps.automation.R
 import info.nightscout.androidaps.logging.LTag
 import info.nightscout.androidaps.utils.JsonHelper.safeGetString
 import info.nightscout.androidaps.utils.resources.ResourceHelper
+import info.nightscout.androidaps.utils.ui.VerticalTextView
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.*
@@ -35,7 +38,7 @@ class TriggerConnector(injector: HasAndroidInjector) : Trigger(injector) {
 
         @get:StringRes val stringRes: Int
             get() = when (this) {
-                OR  -> R.string.or
+                OR -> R.string.or
                 XOR -> R.string.xor
                 AND -> R.string.and
             }
@@ -72,10 +75,10 @@ class TriggerConnector(injector: HasAndroidInjector) : Trigger(injector) {
     @Synchronized override fun shouldRun(): Boolean {
         var result = true
         // check first trigger
-        if (list.size > 0) result = list[0].shouldRun()
-        // check all others
-        for (i in 1 until list.size) {
-            result = connectorType.apply(result, list[i].shouldRun())
+        if (list.size > 0) {
+            for (i in 0 until list.size) {
+                result = connectorType.apply(result, list[i].shouldRun())
+            }
         }
         if (result) aapsLogger.debug(LTag.AUTOMATION, "Ready for execution: " + friendlyDescription().replace("\n", " "))
         return result
@@ -119,31 +122,63 @@ class TriggerConnector(injector: HasAndroidInjector) : Trigger(injector) {
     override fun duplicate(): Trigger = TriggerConnector(injector, connectorType)
 
     override fun generateDialog(root: LinearLayout) {
-        val padding = resourceHelper.dpToPx(5)
-        root.setPadding(padding, padding, padding, padding)
-        root.setBackgroundResource(R.drawable.border_automation_unit)
-        // Header with spinner
-        val headerLayout = LinearLayout(root.context)
-        headerLayout.orientation = LinearLayout.HORIZONTAL
-        headerLayout.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        headerLayout.addView(createSpinner(root.context))
-        headerLayout.addView(createAddButton(root.context, this))
-        headerLayout.addView(createDeleteButton(root.context, this))
-        root.addView(headerLayout)
+        val mainLayout = LinearLayout(root.context).also {
+            it.orientation = LinearLayout.HORIZONTAL
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        val padding = resourceHelper.dpToPx(3)
+        mainLayout.setPadding(padding, padding, padding, padding)
+        mainLayout.setBackgroundResource(R.drawable.border_automation_unit)
+
+        val buttonLayout = LinearLayout(root.context).also {
+            it.orientation = LinearLayout.HORIZONTAL
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        buttonLayout.addView(createAddButton(root.context, this))
+        buttonLayout.addView(createDeleteButton(root.context, this))
+
+        val rightSideLayout = LinearLayout(root.context).also {
+            it.orientation = LinearLayout.VERTICAL
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        rightSideLayout.addView(buttonLayout)
+
         // Child triggers
-        val listLayout = LinearLayout(root.context)
-        listLayout.orientation = LinearLayout.VERTICAL
-        listLayout.setBackgroundColor(resourceHelper.gc(R.color.mdtp_line_dark))
-        //listLayout.setPadding(resourceHelper.dpToPx(5), resourceHelper.dpToPx(5), resourceHelper.dpToPx(5), 0)
-        val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        params.setMargins(resourceHelper.dpToPx(15), 0, resourceHelper.dpToPx(5), resourceHelper.dpToPx(4))
-        listLayout.layoutParams = params
-        for (t in list) t.generateDialog(listLayout)
-        root.addView(listLayout)
+        val listLayout = LinearLayout(root.context).also {
+            it.orientation = LinearLayout.VERTICAL
+            it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also { params ->
+                params.setMargins(resourceHelper.dpToPx(1), 0, resourceHelper.dpToPx(1), resourceHelper.dpToPx(2))
+            }
+        }
+        for (t in list) {
+            t.generateDialog(listLayout)
+            listLayout.addView(
+                TextView(root.context).also {
+                    it.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    it.setPadding(0, resourceHelper.dpToPx(0.3f), 0, 0)
+                })
+        }
+        rightSideLayout.addView(listLayout)
+
+        // Header with spinner
+        mainLayout.addView(createSpinner(root.context))
+        mainLayout.addView(rightSideLayout)
+        root.addView(mainLayout)
     }
 
-    private fun createSpinner(context: Context): Spinner {
-        val initialPosition = connectorType.ordinal
+    private fun createSpinner(context: Context): VerticalTextView {
+        return VerticalTextView(context)
+            .also {
+                it.text = "AAA"
+                it.gravity = it.gravity or Gravity.CENTER_VERTICAL
+                it.textSize = resourceHelper.dpToPx(8).toFloat()
+                it.setBackgroundColor(resourceHelper.gc(R.color.black_overlay))
+                it.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT).also { ll ->
+                    ll.setMargins(resourceHelper.dpToPx(5), resourceHelper.dpToPx(8), resourceHelper.dpToPx(5), resourceHelper.dpToPx(8))
+                }
+            }
+/*      val initialPosition = connectorType.ordinal
         val spinner = Spinner(context)
         val spinnerArrayAdapter = ArrayAdapter(context, R.layout.spinner_centered, Type.labels(resourceHelper))
         spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -165,5 +200,6 @@ class TriggerConnector(injector: HasAndroidInjector) : Trigger(injector) {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         return spinner
+*/
     }
 }

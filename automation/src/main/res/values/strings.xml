@@ -113,6 +113,7 @@
     <string name="automation_event">Automation event</string>
     <string name="reorder_label">Reorder</string>
     <string name="key_automation_settings" translatable="false">automation_settings</string>
+    <string name="user_action">User action</string>
 
 
 </resources>
